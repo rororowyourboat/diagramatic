@@ -1,0 +1,202 @@
+title: "Video Streaming Platform Architecture"
+direction: TB
+layers:
+  - "Users & Entry"
+  - "Routing"
+  - "Core Services"
+  - "Data & Storage"
+  - "Observability"
+
+nodes:
+  # ── Users & Entry ──
+  - id: broadcaster
+    label: "Broadcaster\nRTMP/WHIP\nOBS / Streamlabs"
+    layer: "Users & Entry"
+    shape: ellipse
+    color: start
+
+  - id: ingest
+    label: "Stream Ingestion\nRTMP termination\nstream key auth"
+    layer: "Users & Entry"
+    shape: rect
+    color: start
+
+  - id: transcoder
+    label: "Transcoding Service\nABR: 1080p→144p\nHLS / DASH packaging"
+    layer: "Users & Entry"
+    shape: rect
+    color: start
+
+  - id: cdn
+    label: "CDN / Edge Cache\nGlobal edge nodes\nlow-latency delivery"
+    layer: "Users & Entry"
+    shape: rect
+    color: success
+
+  - id: viewer
+    label: "Viewer\nWeb (HLS.js)\nMobile / TV / Console"
+    layer: "Users & Entry"
+    shape: ellipse
+    color: primary
+
+  # ── Routing ──
+  - id: lb
+    label: "Load Balancer\nTLS · rate limit · routing"
+    layer: "Routing"
+    shape: diamond
+    color: decision
+
+  - id: gateway
+    label: "API Gateway\nauth · service mesh"
+    layer: "Routing"
+    shape: diamond
+    color: decision
+
+  # ── Core Services ──
+  - id: stream_store
+    label: "Stream Store\nChunk assembly\nmanifest generation"
+    layer: "Core Services"
+    shape: rect
+    color: ai
+
+  - id: auth_service
+    label: "User / Auth Service\nOAuth 2.0 / JWT\nsubscriptions · profiles"
+    layer: "Core Services"
+    shape: rect
+    color: ai
+
+  - id: chat_service
+    label: "Chat Service\nWebSocket (WSS)\nIRC rooms · emotes · mod"
+    layer: "Core Services"
+    shape: rect
+    color: ai
+
+  - id: notification
+    label: "Notification Service\nAPNS / FCM push\nin-app · follow alerts"
+    layer: "Core Services"
+    shape: rect
+    color: ai
+
+  - id: recommendation
+    label: "Recommendation Engine\nCollaborative filter\ntrending · ML serving"
+    layer: "Core Services"
+    shape: rect
+    color: ai
+
+  # ── Data & Storage ──
+  - id: s3
+    label: "S3 Object Store\nVOD recordings\nthumbnails · segments"
+    layer: "Data & Storage"
+    shape: cylinder
+    color: disabled
+
+  - id: postgres
+    label: "PostgreSQL\nUser accounts\nmetadata · billing"
+    layer: "Data & Storage"
+    shape: cylinder
+    color: disabled
+
+  - id: redis
+    label: "Redis Cluster\nSession cache\nchat pub/sub · rate limits"
+    layer: "Data & Storage"
+    shape: cylinder
+    color: disabled
+
+  - id: kafka
+    label: "Kafka / Event Bus\nAsync stream events\nnotification queue"
+    layer: "Data & Storage"
+    shape: cylinder
+    color: disabled
+
+  - id: elasticsearch
+    label: "Elasticsearch\nSearch streams/users\nlog aggregation"
+    layer: "Data & Storage"
+    shape: cylinder
+    color: disabled
+
+  # ── Observability ──
+  - id: monitoring
+    label: "Monitoring\nPrometheus + Grafana\nlatency · health · errors"
+    layer: "Observability"
+    shape: rect
+    color: warning
+
+  - id: logging
+    label: "Logging & Tracing\nELK + Jaeger\nstructured logs · traces"
+    layer: "Observability"
+    shape: rect
+    color: warning
+
+edges:
+  # Ingest path
+  - from: broadcaster
+    to: ingest
+    label: "RTMP/WHIP"
+  - from: ingest
+    to: transcoder
+    label: "Raw frames"
+  - from: transcoder
+    to: cdn
+    label: "HLS/DASH"
+  - from: cdn
+    to: viewer
+    label: "Playlist"
+
+  # Control plane
+  - from: broadcaster
+    to: lb
+    label: "Control API"
+  - from: viewer
+    to: gateway
+    label: "HTTP/WS"
+  - from: lb
+    to: gateway
+    label: "Route traffic"
+
+  # Gateway → services
+  - from: gateway
+    to: stream_store
+  - from: gateway
+    to: auth_service
+  - from: gateway
+    to: chat_service
+  - from: gateway
+    to: notification
+  - from: gateway
+    to: recommendation
+
+  # Recording path
+  - from: ingest
+    to: stream_store
+    label: "Record stream"
+  - from: transcoder
+    to: stream_store
+    label: "Write segments"
+
+  # Services → databases
+  - from: stream_store
+    to: s3
+    label: "Persist VOD"
+  - from: auth_service
+    to: postgres
+    label: "Read/write"
+  - from: chat_service
+    to: redis
+    label: "Cache/pubsub"
+  - from: notification
+    to: kafka
+    label: "Enqueue"
+  - from: recommendation
+    to: elasticsearch
+    label: "Query"
+
+  # Observability
+  - from: cdn
+    to: monitoring
+    label: "Edge metrics"
+  - from: postgres
+    to: monitoring
+    label: "DB metrics"
+  - from: kafka
+    to: logging
+    label: "Audit logs"
