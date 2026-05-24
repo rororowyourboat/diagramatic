@@ -15,6 +15,14 @@ from .canvas_models import (
     TextNode,
 )
 
+# Register the default library search path
+from .library import register_search_path
+import os as _os
+
+_default_lib = _os.path.join(_os.path.dirname(__file__), "..", "..", "libraries")
+if _os.path.isdir(_default_lib):
+    register_search_path(_default_lib)
+
 # Re-export everything so consumers only need ``from diagramatic.core import ...``
 __all__ = [
     "Canvas",
@@ -70,6 +78,7 @@ class LayoutNode:
     layer: str | None = None
     shape: Shape = "rect"
     color: SemanticColor = "primary"
+    icon: str | None = None
     width: float = 200
     height: float = 80
     x: float = 0

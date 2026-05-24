@@ -17,9 +17,14 @@ import sys
 from pathlib import Path
 
 from diagramatic.core import DiagramSpec, LayoutEdge, LayoutNode
+from diagramatic.core.library import list_library_items, register_search_path
 from diagramatic.export.excalidraw import parse_excalidraw, to_excalidraw
 from diagramatic.layout.dagre import dagre_layout
 from diagramatic.layout.grid import grid_layout
+
+# Register common library search paths
+for p in ["/home/rohan/Downloads", "libraries", ".libraries"]:
+    register_search_path(p)
 
 
 def _load_spec(input_path: str) -> DiagramSpec:
@@ -49,6 +54,7 @@ def _load_spec(input_path: str) -> DiagramSpec:
             layer=nd.get("layer"),
             shape=nd.get("shape", "rect"),
             color=nd.get("color", "primary"),
+            icon=nd.get("icon"),
             width=nd.get("width", 200),
             height=nd.get("height", 80),
             fixed=nd.get("fixed", False),
@@ -169,6 +175,21 @@ def cmd_fix(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_libraries(args: argparse.Namespace) -> int:
+    """List available library items."""
+    items = list_library_items(args.library)
+    if args.library:
+        for lib, names in items.items():
+            print(f"\n📦 {lib} ({len(names)} items):")
+            for name in names:
+                print(f"    {name}")
+    else:
+        print("Available libraries:")
+        for lib, names in items.items():
+            print(f"  📦 {lib} — {len(names)} items")
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="diagramatic — agent-friendly diagram toolkit",
@@ -200,6 +221,11 @@ def main() -> int:
     p_fix.add_argument("input", help="Path to .excalidraw file")
     p_fix.add_argument("-o", "--output", help="Output path (default: overwrite input)")
 
+    # libraries
+    p_libs = sub.add_parser("libraries", help="List available library items")
+    p_libs.add_argument("--library", "-l", default=None,
+                        help="Filter to a specific library (arch, system-design, etc.)")
+
     args = parser.parse_args()
 
     commands = {
@@ -207,6 +233,7 @@ def main() -> int:
         "validate": cmd_validate,
         "render": cmd_render,
         "fix": cmd_fix,
+        "libraries": cmd_libraries,
     }
 
     return commands[args.command](args)

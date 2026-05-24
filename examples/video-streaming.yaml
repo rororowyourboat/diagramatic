@@ -14,6 +14,7 @@ nodes:
     layer: "Users & Entry"
     shape: ellipse
     color: start
+    icon: user
 
   - id: ingest
     label: "Stream Ingestion\nRTMP termination\nstream key auth"
@@ -32,12 +33,14 @@ nodes:
     layer: "Users & Entry"
     shape: rect
     color: success
+    icon: cdn
 
   - id: viewer
     label: "Viewer\nWeb (HLS.js)\nMobile / TV / Console"
     layer: "Users & Entry"
     shape: ellipse
     color: primary
+    icon: users
 
   # ── Routing ──
   - id: lb
@@ -45,12 +48,14 @@ nodes:
     layer: "Routing"
     shape: diamond
     color: decision
+    icon: load-balancer
 
   - id: gateway
     label: "API Gateway\nauth · service mesh"
     layer: "Routing"
     shape: diamond
     color: decision
+    icon: server
 
   # ── Core Services ──
   - id: stream_store
@@ -58,30 +63,35 @@ nodes:
     layer: "Core Services"
     shape: rect
     color: ai
+    icon: archive
 
   - id: auth_service
     label: "User / Auth Service\nOAuth 2.0 / JWT\nsubscriptions · profiles"
     layer: "Core Services"
     shape: rect
     color: ai
+    icon: lock
 
   - id: chat_service
     label: "Chat Service\nWebSocket (WSS)\nIRC rooms · emotes · mod"
     layer: "Core Services"
     shape: rect
     color: ai
+    icon: slack
 
   - id: notification
     label: "Notification Service\nAPNS / FCM push\nin-app · follow alerts"
     layer: "Core Services"
     shape: rect
     color: ai
+    icon: email
 
   - id: recommendation
     label: "Recommendation Engine\nCollaborative filter\ntrending · ML serving"
     layer: "Core Services"
     shape: rect
     color: ai
+    icon: chart
 
   # ── Data & Storage ──
   - id: s3
@@ -89,30 +99,35 @@ nodes:
     layer: "Data & Storage"
     shape: cylinder
     color: disabled
+    icon: object-storage
 
   - id: postgres
     label: "PostgreSQL\nUser accounts\nmetadata · billing"
     layer: "Data & Storage"
     shape: cylinder
     color: disabled
+    icon: database
 
   - id: redis
     label: "Redis Cluster\nSession cache\nchat pub/sub · rate limits"
     layer: "Data & Storage"
     shape: cylinder
     color: disabled
+    icon: database
 
   - id: kafka
     label: "Kafka / Event Bus\nAsync stream events\nnotification queue"
     layer: "Data & Storage"
     shape: cylinder
     color: disabled
+    icon: message-queue
 
   - id: elasticsearch
     label: "Elasticsearch\nSearch streams/users\nlog aggregation"
     layer: "Data & Storage"
     shape: cylinder
     color: disabled
+    icon: search
 
   # ── Observability ──
   - id: monitoring
@@ -120,12 +135,14 @@ nodes:
     layer: "Observability"
     shape: rect
     color: warning
+    icon: chart
 
   - id: logging
     label: "Logging & Tracing\nELK + Jaeger\nstructured logs · traces"
     layer: "Observability"
     shape: rect
     color: warning
+    icon: tag
 
 edges:
   # Ingest path

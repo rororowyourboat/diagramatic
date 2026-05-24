@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from diagramatic.core.canvas_models import Canvas, Edge as CanvasEdge, TextNode, Node
+from diagramatic.core.library import resolve_semantic_icon, embed_library_item
 
 from diagramatic.core import (
     DiagramSpec,
@@ -287,25 +288,52 @@ def to_excalidraw(
                       lineHeight=1.25, roundness=None)
             elements.append(lbl)
 
-    # 2. Add shape elements
+    # 2. Add shape elements (or library icons)
     for ln in positioned_nodes:
-        shape_el = _shape_element(ln, ln.x, ln.y)
-        if isinstance(shape_el, list):
-            # Cylinder — returns multiple elements
-            shape_ids[ln.id] = [e["id"] for e in shape_el]
-            elements.extend(shape_el)
-            # Text goes inside the body (2nd element)
-            container = shape_el[1]["id"]
+        # Check if this node has an icon from the library
+        if ln.icon:
+            icon_elements = resolve_semantic_icon(ln.icon)
+            if icon_elements:
+                placed = embed_library_item(
+                    icon_elements, ln.x, ln.y,
+                    scale=min(ln.width / 200, ln.height / 200, 0.6),
+                )
+                # Pick a primary bind target for the icon: prefer a non-line,
+                # non-text element (usually the main visible shape).
+                primary = next(
+                    (e["id"] for e in placed if e.get("type") not in ("line", "text")),
+                    placed[0]["id"],
+                )
+                shape_ids[ln.id] = [primary]
+                elements.extend(placed)
+                container = primary
+            else:
+                # Icon not found — fall back to regular shape
+                shape_el = _shape_element(ln, ln.x, ln.y)
+                if isinstance(shape_el, list):
+                    shape_ids[ln.id] = [e["id"] for e in shape_el]
+                    elements.extend(shape_el)
+                    container = shape_el[1]["id"]
+                else:
+                    shape_ids[ln.id] = [shape_el["id"]]
+                    elements.append(shape_el)
+                    container = shape_el["id"]
         else:
-            shape_ids[ln.id] = [shape_el["id"]]
-            elements.append(shape_el)
-            container = shape_el["id"]
+            shape_el = _shape_element(ln, ln.x, ln.y)
+            if isinstance(shape_el, list):
+                shape_ids[ln.id] = [e["id"] for e in shape_el]
+                elements.extend(shape_el)
+                container = shape_el[1]["id"]
+            else:
+                shape_ids[ln.id] = [shape_el["id"]]
+                elements.append(shape_el)
+                container = shape_el["id"]
 
-        # Text
+        # Text label
         te = _text_element(ln, ln.x, ln.y, container)
         elements.append(te)
 
-        # Bind
+        # Bind text to shape elements
         for sid in shape_ids[ln.id]:
             shape_el_obj = next(e for e in elements if e["id"] == sid)
             if shape_el_obj.get("boundElements") is None:
