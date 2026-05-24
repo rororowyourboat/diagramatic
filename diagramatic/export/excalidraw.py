@@ -144,11 +144,17 @@ def _arrow_element(
     to_x: float, to_y: float,
     from_w: float, from_h: float,
     to_w: float, to_h: float,
+    from_id: str | None = None,
+    to_id: str | None = None,
     color: str = "#495057",
     label: str | None = None,
 ) -> list[dict]:
-    """Create an arrow between two boxes with orthogonal routing."""
-    # Compute centers
+    """Create an arrow with bindings so it stays connected when nodes move.
+
+    ``from_id`` and ``to_id`` are the Excalidraw shape element IDs to bind to.
+    When set, Excalidraw will keep the arrow endpoints attached to those shapes
+    even when they are dragged around.
+    """
     fcx = from_x + from_w / 2
     fcy = from_y + from_h / 2
     tcx = to_x + to_w / 2
@@ -158,30 +164,41 @@ def _arrow_element(
     dy = tcy - fcy
 
     # Choose exit/entry sides based on relative positions
+    # focus: 0=top-left corner, 1=bottom-right corner along the relevant axis
     if abs(dx) > abs(dy):
-        # Horizontal dominant — exit right, enter left (or vice versa)
-        from_side = "right" if dx > 0 else "left"
-        to_side = "left" if dx > 0 else "right"
-        if from_side == "right":
+        # Horizontal dominant
+        if dx > 0:
             fx, fy = from_x + from_w, fcy
             tx_, ty_ = to_x, tcy
-            pts = [[tx_ - fx, ty_ - fy]]
+            from_focus = 0.5   # middle-right
+            to_focus = 0.5     # middle-left
         else:
             fx, fy = from_x, fcy
             tx_, ty_ = to_x + to_w, tcy
-            pts = [[tx_ - fx, ty_ - fy]]
+            from_focus = 0.5   # middle-left
+            to_focus = 0.5     # middle-right
+        pts = [[tx_ - fx, ty_ - fy]]
     else:
-        # Vertical dominant — exit bottom, enter top (or vice versa)
-        from_side = "bottom" if dy > 0 else "top"
-        to_side = "top" if dy > 0 else "bottom"
-        if from_side == "bottom":
+        # Vertical dominant
+        if dy > 0:
             fx, fy = fcx, from_y + from_h
             tx_, ty_ = tcx, to_y
-            pts = [[tx_ - fx, ty_ - fy]]
+            from_focus = 0.5   # middle-bottom
+            to_focus = 0.5     # middle-top
         else:
             fx, fy = fcx, from_y
             tx_, ty_ = tcx, to_y + to_h
-            pts = [[tx_ - fx, ty_ - fy]]
+            from_focus = 0.5   # middle-top
+            to_focus = 0.5     # middle-bottom
+        pts = [[tx_ - fx, ty_ - fy]]
+
+    # Build bindings — these tell Excalidraw to attach the arrow to the shapes
+    start_binding = None
+    end_binding = None
+    if from_id:
+        start_binding = {"elementId": from_id, "focus": from_focus, "gap": 2}
+    if to_id:
+        end_binding = {"elementId": to_id, "focus": to_focus, "gap": 2}
 
     elems = [
         _el(type="arrow", x=fx, y=fy,
@@ -189,7 +206,8 @@ def _arrow_element(
             strokeColor=color, backgroundColor="transparent",
             strokeWidth=1.5, roughness=0, roundness={"type": 2},
             points=[[0, 0]] + pts,
-            startBinding=None, endBinding=None,
+            startBinding=start_binding,
+            endBinding=end_binding,
             startArrowhead=None, endArrowhead="arrow")
     ]
 
@@ -306,17 +324,29 @@ def to_excalidraw(
         if not fids or not tids:
             continue
 
-        # Use first shape ID for each (primary shape)
-        from_sid = fids[0] if len(fids) == 1 or ln.shape != "cylinder" else fids[1]
-        to_sid = tids[0] if len(tids) == 1 or ln.shape != "cylinder" else tids[1]
+        # Pick the correct shape element for binding.
+        # For cylinders we bind to the body (2nd element, index 1).
+        from_sid = fids[1] if len(fids) > 1 else fids[0]
+        to_sid = tids[1] if len(tids) > 1 else tids[0]
 
         arrow_elems = _arrow_element(
             from_ln.x, from_ln.y, to_ln.x, to_ln.y,
             from_ln.width, from_ln.height,
             to_ln.width, to_ln.height,
+            from_id=from_sid,
+            to_id=to_sid,
             label=le.label,
         )
         elements.extend(arrow_elems)
+
+        # Register arrows as boundElements on the shapes so Excalidraw
+        # keeps them connected when shapes are dragged.
+        arrow_id = arrow_elems[0]["id"]
+        for sid in (from_sid, to_sid):
+            shape_obj = next(e for e in elements if e["id"] == sid)
+            if shape_obj.get("boundElements") is None:
+                shape_obj["boundElements"] = []
+            shape_obj["boundElements"].append({"id": arrow_id, "type": "arrow"})
 
     # 4. Build scene
     scene = {
